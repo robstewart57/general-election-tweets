@@ -77,14 +77,15 @@ loopTweets ::
 loopTweets twInfo mgr mvars = go
   where
     go = do
-      results <-
-        mapM takeMVar mvars
+      results <- mapM takeMVar mvars
       -- go
       if not (null results)
         then do
-          let text = concatMap (\(a, b) -> tweetText a b) results
-          sendTweet twInfo mgr
-            ("Last " ++ show hours ++ " hours. " ++ text)
+          let text = concatMap (\(i,(a, b)) -> tweetText i a b) (zip [0..] results)
+          sendTweet
+            twInfo
+            mgr
+            ("Last " ++ show hours ++ " hours. " ++ text ++ "#GeneralElection")
           go
         else go
 
@@ -166,23 +167,34 @@ printTL _ = Nothing
 showStatus :: AsStatus s => s -> T.Text
 showStatus s = s ^. text
 
-tweetText :: String -> (Integer, Integer, Integer, Integer) -> String
-tweetText personName (pos, neg, neutral, numTweets)
- = update
+tweetText :: Int -> String -> (Integer, Integer, Integer, Integer) -> String
+tweetText position personName (pos, neg, neutral, numTweets) =
+  case position of
+    0 -> updateFirst
+    _ -> updateRest
   where
-    update =
+    updateRest  =
+      show numTweets ++
+      " on " ++
       personName ++
       ": " ++
       show (round positive) ++
-      "%+/" ++ show (round negative) ++ "%-, " ++ show numTweets ++ " tweets. "
+      "%+/" ++ show (round negative) ++ "%-. "
+    updateFirst =
+      show numTweets ++
+      " tweets on " ++
+      personName ++
+      ": " ++
+      show (round positive) ++
+      "%+/" ++ show (round negative) ++ "%-. "
     positive =
-      if (pos+neg) > 0
-      then 100.0 * (fromInteger pos / fromInteger (pos + neg))
-      else 0
+      if (pos + neg) > 0
+        then 100.0 * (fromInteger pos / fromInteger (pos + neg))
+        else 0
     negative =
-      if (pos+neg) > 0
-      then 100.0 * (fromInteger neg / fromInteger (pos + neg))
-      else 0
+      if (pos + neg) > 0
+        then 100.0 * (fromInteger neg / fromInteger (pos + neg))
+        else 0
 
 clean :: String -> String
 clean str =
