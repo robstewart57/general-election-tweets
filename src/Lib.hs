@@ -236,7 +236,11 @@ sentiment tweets personName =
                     (\tweet ->
                        "{\"query\" : \"" ++
                        personName ++
-                       "\" , \"text\": \"" ++ (clean . T.unpack) tweet ++ ".\"}")
+                       "\" , \"text\": \"" ++
+                       (filter (/= '\'') .
+                        filter (/= '\"') . filter isAscii . clean . T.unpack)
+                         tweet ++
+                       ".\"}")
                     tweets)) ++
             "]}"
       respBody <- runSentimentQuery body
