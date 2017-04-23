@@ -97,7 +97,7 @@ sendTweet twInfo mgr text = do
     (\ex@(TwitterErrorResponse{}) -> print ex)
 
 hours :: Int
-hours = 1
+hours = 6
 
 -- | in seconds.
 tweetFrequency :: Int
@@ -193,7 +193,7 @@ tweetText position numPositions personName (pos, neg, neutral, numTweets)
       personName ++
       ": " ++
       show (round positive) ++
-      "%+/" ++ show (round negative) ++ "%-. "
+      "%+/" ++ show (round negative) ++ "%-, "
     positive =
       if (pos + neg) > 0
         then 100.0 * (fromInteger pos / fromInteger (pos + neg))
