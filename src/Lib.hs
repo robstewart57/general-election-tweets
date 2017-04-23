@@ -5,14 +5,12 @@ import qualified Data.Conduit as C
 import qualified Data.Conduit.List as CL
 import qualified Data.Text.IO as T
 import qualified Data.Text as T
-
-import Control.Monad.IO.Class (liftIO)
 import Network.HTTP -- (getResponseBody, postRequestWithBody, getRequest, simpleHTTP, urlEncode)
 import Text.JSON (encode)
 import Text.JSON.Yocto
 import Web.Twitter.Conduit (stream, statusesFilterByTrack)
 import Control.Lens.Action -- ((^!), act)
-import Data.Map ((!))
+import Data.Map ((!), Map)
 import Data.List (isInfixOf, or)
 import Data.Conduit
 import Web.Twitter.Types -- (userScreenName, statusUser, statusText, StreamingAPI(..))
@@ -52,8 +50,6 @@ import System.CPUTime
 import Control.Concurrent
 import Control.Exception
 import Data.Conduit.Attoparsec
-import Data.Map (Map)
-import qualified Data.Map as Map
 import System.Process
 
 analyze :: [String] -> IO ()
@@ -67,11 +63,10 @@ analyze politicians = do
     atomically $ mapM (const (dupTMChan tmChan)) [0 .. length politicians - 1]
   forkIO $ collectTweets mgr twInfo tmChan (map T.pack politicians)
   reports <- mapM (const newEmptyMVar) [0 .. length politicians - 1]
-  mapM_
-    (\x -> forkIO (monitorPolitician x))
-    (map
-       (\i -> (politicians !! i, reports !! i, chans !! i))
-       [0 .. length politicians - 1])
+  mapM_ (
+    (\x -> forkIO (monitorPolitician x)) .
+       (\i -> (politicians !! i, reports !! i, chans !! i)))
+       [0 .. length politicians - 1]
   void $ loopTweets twInfo mgr reports
 
 loopTweets ::
@@ -85,9 +80,9 @@ loopTweets twInfo mgr mvars = go
       results <-
         mapM takeMVar mvars
       -- go
-      if (not (null results))
+      if not (null results)
         then do
-          let text = concat (Data.List.map (\(a, b) -> tweetText a b) results)
+          let text = concatMap (\(a, b) -> tweetText a b) results
           sendTweet twInfo mgr
             ("Last " ++ show hours ++ " hours. " ++ text)
           go
@@ -96,9 +91,9 @@ loopTweets twInfo mgr mvars = go
 sendTweet :: TWInfo -> Manager -> String -> IO ()
 sendTweet twInfo mgr text = do
   putStrLn text
-  catch (call twInfo mgr (update (T.pack text)) >> return ())
+  catch (Control.Monad.void (call twInfo mgr (update (T.pack text))))
     -- such as 'twitterErrorMessage = "Status is a duplicate."'
-    (\ex@(TwitterErrorResponse _ _ _) -> print ex)
+    (\ex@(TwitterErrorResponse{}) -> print ex)
 
 hours :: Int
 hours = 1
@@ -165,7 +160,7 @@ printTL (SStatus s) =
     -- ignore this account's emails
     "Election Sentiment" -> Nothing
     -- a tweet of interest
-    _ -> Just $ showStatus $ s
+    _ -> Just $ showStatus s
 printTL _ = Nothing
 
 showStatus :: AsStatus s => s -> T.Text
@@ -197,13 +192,13 @@ clean str =
           (\w ->
              not
                (or
-                  [ isInfixOf "@" w
-                  , isInfixOf "#" w
-                  , isInfixOf "\n" w
-                  , isInfixOf "http://" w
+                  [ "@" `isInfixOf` w
+                  , "#" `isInfixOf` w
+                  , "\n" `isInfixOf` w
+                  , "http://" `isInfixOf` w
                   ]))
           (words str)
-  in filter (\c -> not (c == '\'')) xs
+  in filter (\c -> c /= '\'') xs
 
 sentimentUrl :: String
 sentimentUrl = "http://www.sentiment140.com/api/bulkClassifyJson"
@@ -213,8 +208,7 @@ runSentimentQuery body = do
   resp <-
     simpleHTTP $
     postRequestWithBody sentimentUrl "application/json" body
-  respBody <- getResponseBody resp
-  return respBody
+  getResponseBody resp
 
 {- process based back up.
 runSentimentQuery body' = do
@@ -229,7 +223,7 @@ runSentimentQuery body' = do
 -}
 
 sentiment :: [T.Text] -> String -> IO [Integer]
-sentiment tweets personName = do
+sentiment tweets personName =
   if null tweets
     then return []
     else do
