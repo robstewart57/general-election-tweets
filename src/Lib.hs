@@ -81,7 +81,7 @@ loopTweets twInfo mgr mvars = go
       -- go
       if not (null results)
         then do
-          let text = concatMap (\(i,(a, b)) -> tweetText i a b) (zip [0..] results)
+          let text = concatMap (\(i,(a, b)) -> tweetText i (length results) a b) (zip [0..] results)
           sendTweet
             twInfo
             mgr
@@ -167,19 +167,26 @@ printTL _ = Nothing
 showStatus :: AsStatus s => s -> T.Text
 showStatus s = s ^. text
 
-tweetText :: Int -> String -> (Integer, Integer, Integer, Integer) -> String
-tweetText position personName (pos, neg, neutral, numTweets) =
-  case position of
-    0 -> updateFirst
-    _ -> updateRest
+tweetText :: Int -> Int -> String -> (Integer, Integer, Integer, Integer) -> String
+tweetText position numPositions personName (pos, neg, neutral, numTweets)
+  | position == 0 = updateFirst
+  | position == numPositions-1 = updateLast
+  | otherwise = updateRest
   where
-    updateRest  =
+    updateLast  =
       show numTweets ++
       " on " ++
       personName ++
       ": " ++
       show (round positive) ++
       "%+/" ++ show (round negative) ++ "%-. "
+    updateRest  =
+      show numTweets ++
+      " on " ++
+      personName ++
+      ": " ++
+      show (round positive) ++
+      "%+/" ++ show (round negative) ++ "%-, "
     updateFirst =
       show numTweets ++
       " tweets on " ++
