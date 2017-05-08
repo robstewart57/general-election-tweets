@@ -51,6 +51,7 @@ import Control.Concurrent
 import Control.Exception
 import Data.Conduit.Attoparsec
 import System.Process
+import Data.Time.Clock
 
 analyze :: [String] -> IO ()
 analyze politicians = do
@@ -220,7 +221,7 @@ clean str =
   in filter (\c -> c /= '\'') xs
 
 sentimentUrl :: String
-sentimentUrl = "http://www.sentiment140.com/api/bulkClassifyJson"
+sentimentUrl = "http://www.sentiment140.com/api/bulkClassifyJson?appid=robstewart57@gmail.com"
 
 runSentimentQuery :: String -> IO String
 runSentimentQuery body = do
@@ -262,6 +263,8 @@ sentiment tweets personName =
                        ".\"}")
                     tweets)) ++
             "]}"
+      now <- getCurrentTime
+      writeFile ("/tmp/" ++ show now ++ ".txt") body
       respBody <- runSentimentQuery body
       if (length respBody == 0)
         then return []
