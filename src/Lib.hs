@@ -86,7 +86,7 @@ loopTweets twInfo mgr mvars = go
           sendTweet
             twInfo
             mgr
-            ("Last " ++ show hours ++ " hours. " ++ text ++ "#GeneralElection")
+            ("Last " ++ show hours ++ " hours. " ++ text ++ "#GE2017")
           go
         else go
 
